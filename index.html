@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Organisation Discovery Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1B2420;
+    --ink-soft:#4B564F;
+    --paper:#EEF0EC;
+    --panel:#FFFFFF;
+    --line:#CBD1C6;
+    --line-soft:#DEE2D9;
+    --seal-green:#2F6F4F;
+    --seal-green-dark:#234F38;
+    --amber:#B98A3E;
+    --amber-bg:#F6EBD8;
+    --red:#A6432F;
+    --red-bg:#F5E4DF;
+    --focus:#1D4ED8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  a{color:var(--seal-green-dark);}
+  ::selection{background:#C9DBCE;}
+
+  .masthead{
+    background:var(--ink);
+    color:#F2F3EF;
+    padding:2.25rem 1.75rem 1.9rem;
+    border-bottom:3px solid var(--seal-green);
+  }
+  .masthead-inner{
+    max-width:960px;
+    margin:0 auto;
+  }
+  .masthead-kicker{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.78rem;
+    letter-spacing:0.02em;
+    color:#9FB3A5;
+    margin:0 0 0.55rem;
+  }
+  .masthead h1{
+    font-family:'Source Serif 4',Georgia,serif;
+    font-weight:600;
+    font-size:clamp(1.65rem,3.4vw,2.35rem);
+    margin:0 0 0.5rem;
+    letter-spacing:-0.01em;
+  }
+  .masthead p{
+    margin:0;
+    max-width:52ch;
+    color:#C7CDC3;
+    font-size:0.97rem;
+  }
+
+  main{
+    max-width:960px;
+    margin:0 auto;
+    padding:2rem 1.75rem 4rem;
+  }
+
+  .search-panel{
+    background:var(--panel);
+    border:1px solid var(--line-soft);
+    border-radius:4px;
+    padding:1.5rem;
+    display:flex;
+    gap:0.9rem;
+    align-items:flex-end;
+    flex-wrap:wrap;
+  }
+  .field{
+    flex:1 1 280px;
+    display:flex;
+    flex-direction:column;
+    gap:0.4rem;
+  }
+  .field label{
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .field input{
+    font-family:'Inter',sans-serif;
+    font-size:0.98rem;
+    padding:0.65rem 0.8rem;
+    border:1.5px solid var(--line);
+    border-radius:3px;
+    background:#FCFCFA;
+    color:var(--ink);
+  }
+  .field input:focus{
+    outline:2px solid var(--focus);
+    outline-offset:1px;
+    border-color:var(--focus);
+  }
+  .field-error{
+    font-size:0.83rem;
+    color:var(--red);
+    min-height:1.1em;
+  }
+  .buttons{
+    display:flex;
+    gap:0.6rem;
+    flex-wrap:wrap;
+  }
+  button{
+    font-family:'Inter',sans-serif;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:0.68rem 1.15rem;
+    border-radius:3px;
+    border:1.5px solid transparent;
+    cursor:pointer;
+    transition:background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+  }
+  button:focus-visible{
+    outline:2px solid var(--focus);
+    outline-offset:2px;
+  }
+  button:disabled{
+    cursor:not-allowed;
+    opacity:0.55;
+  }
+  .btn-primary{
+    background:var(--seal-green);
+    color:#fff;
+  }
+  .btn-primary:hover:not(:disabled){background:var(--seal-green-dark);}
+  .btn-secondary{
+    background:transparent;
+    border-color:var(--line);
+    color:var(--ink);
+  }
+  .btn-secondary:hover:not(:disabled){background:#E7E9E3;}
+  .btn-download{
+    background:var(--ink);
+    color:#fff;
+  }
+  .btn-download:hover:not(:disabled){background:#0F1712;}
+
+  .status-line{
+    margin-top:1rem;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    display:flex;
+    align-items:center;
+    gap:0.55rem;
+    min-height:1.3em;
+  }
+  .spinner{
+    width:13px;height:13px;
+    border-radius:50%;
+    border:2px solid var(--line);
+    border-top-color:var(--seal-green);
+    animation:spin 0.8s linear infinite;
+    flex:none;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .stage-list{
+    margin:0.5rem 0 0;
+    padding:0;
+    list-style:none;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    display:grid;
+    gap:0.25rem;
+  }
+  .stage-list li{
+    display:flex;
+    align-items:center;
+    gap:0.5rem;
+  }
+  .stage-list li::before{
+    content:"–";
+    color:var(--line);
+  }
+  .stage-list li.active::before{
+    content:"›";
+    color:var(--seal-green);
+  }
+  .stage-list li.active{color:var(--ink);}
+
+  .results-section{
+    margin-top:2.5rem;
+  }
+  .results-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:1rem;
+    margin-bottom:0.8rem;
+    flex-wrap:wrap;
+  }
+  .results-header h2{
+    font-family:'Source Serif 4',Georgia,serif;
+    font-weight:600;
+    font-size:1.25rem;
+    margin:0;
+  }
+  .results-count{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.82rem;
+    color:var(--ink-soft);
+  }
+
+  .table-wrap{
+    background:var(--panel);
+    border:1px solid var(--line-soft);
+    border-radius:4px;
+    overflow-x:auto;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:900px;
+  }
+  thead th{
+    text-align:left;
+    font-size:0.76rem;
+    letter-spacing:0.01em;
+    color:var(--ink-soft);
+    font-weight:600;
+    padding:0.75rem 0.9rem;
+    border-bottom:1.5px solid var(--line);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:0.8rem 0.9rem;
+    border-bottom:1px solid var(--line-soft);
+    font-size:0.88rem;
+    vertical-align:top;
+  }
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#F7F8F5;}
+  td.mono, .mono-link{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.82rem;
+  }
+  td.col-si{
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--ink-soft);
+  }
+  .url-list{
+    display:flex;
+    flex-direction:column;
+    gap:0.3rem;
+  }
+  .url-list a{
+    word-break:break-all;
+  }
+  .badge{
+    display:inline-block;
+    font-family:'Inter',sans-serif;
+    font-size:0.76rem;
+    font-weight:600;
+    padding:0.28rem 0.6rem;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+  .badge-nodomain{background:var(--red-bg);color:var(--red);}
+  .badge-nopeople{background:var(--amber-bg);color:var(--amber);}
+  .badge-notworking{background:var(--amber-bg);color:var(--amber);}
+
+  .empty-state{
+    padding:3rem 1.5rem;
+    text-align:center;
+    color:var(--ink-soft);
+  }
+  .empty-state p{
+    margin:0.3rem 0 0;
+    font-size:0.92rem;
+  }
+
+  .toast{
+    margin-top:1rem;
+    padding:0.8rem 1rem;
+    border-radius:3px;
+    font-size:0.9rem;
+    background:var(--red-bg);
+    color:var(--red);
+    border:1px solid #E3C3B9;
+  }
+
+  @media (max-width:600px){
+    .search-panel{flex-direction:column;align-items:stretch;}
+    .buttons{width:100%;}
+    .buttons button{flex:1;}
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <p class="masthead-kicker">LIVE RESEARCH · LEADERSHIP &amp; GOVERNANCE PAGES</p>
+    <h1>Organisation Discovery Check</h1>
+    <p>Enter a company name and this tool researches the web for its official Board, Leadership, Management, or Team page — validating every link before it's shown to you.</p>
+  </div>
+</header>
+
+<main>
+  <section class="search-panel" aria-label="Company search">
+    <div class="field">
+      <label for="companyInput">Company Name</label>
+      <input id="companyInput" type="text" placeholder="Enter a company name" autocomplete="off" />
+      <div class="field-error" id="fieldError" role="alert"></div>
+    </div>
+    <div class="buttons">
+      <button class="btn-primary" id="searchBtn" type="button">Find Leadership Pages</button>
+      <button class="btn-secondary" id="clearBtn" type="button">Clear Results</button>
+      <button class="btn-download" id="downloadBtn" type="button" disabled>Download XLSX</button>
+    </div>
+  </section>
+
+  <div class="status-line" id="statusLine" aria-live="polite"></div>
+  <ul class="stage-list" id="stageList" hidden></ul>
+  <div id="errorToast"></div>
+
+  <section class="results-section">
+    <div class="results-header">
+      <h2>Results</h2>
+      <span class="results-count" id="resultsCount">0 companies</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SI No</th>
+            <th>Company Name</th>
+            <th>Domain</th>
+            <th>Leadership URL</th>
+            <th>Board URL</th>
+            <th>Other Team URLs</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState">
+        <strong>No searches yet</strong>
+        <p>Results from your searches will appear here as rows in this table.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Frontend and API are deployed together (same origin), so this is just
+  // a relative path — no separate backend URL to configure.
+  const API_BASE_URL = "";
+
+  const companyInput = document.getElementById("companyInput");
+  const fieldError = document.getElementById("fieldError");
+  const searchBtn = document.getElementById("searchBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const statusLine = document.getElementById("statusLine");
+  const stageList = document.getElementById("stageList");
+  const errorToast = document.getElementById("errorToast");
+  const resultsBody = document.getElementById("resultsBody");
+  const resultsCount = document.getElementById("resultsCount");
+  const emptyState = document.getElementById("emptyState");
+
+  const STAGES = [
+    "Identifying the official domain",
+    "Checking leadership and board pages",
+    "Validating people information",
+    "Preparing the result",
+  ];
+
+  const STATUS_LABELS = {
+    "No Domain available": { text: "No domain available", cls: "badge-nodomain" },
+    "Domain Available – No pages with people information": { text: "No people pages found", cls: "badge-nopeople" },
+    "Domain Available – Not Working": { text: "Domain not working", cls: "badge-notworking" },
+  };
+
+  let results = []; // { siNo, companyName, domain, leadershipUrl, boardUrl, otherTeamUrls, status }
+  let isSubmitting = false;
+  let stageTimer = null;
+
+  function clearFieldError(){
+    fieldError.textContent = "";
+  }
+
+  function showFieldError(message){
+    fieldError.textContent = message;
+  }
+
+  function showToast(message){
+    errorToast.innerHTML = `<div class="toast" role="alert">${escapeHtml(message)}</div>`;
+  }
+
+  function clearToast(){
+    errorToast.innerHTML = "";
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function setLoading(loading){
+    isSubmitting = loading;
+    searchBtn.disabled = loading;
+    if (loading){
+      statusLine.innerHTML = `<span class="spinner"></span><span>Researching and validating official company pages…</span>`;
+      stageList.hidden = false;
+      stageList.innerHTML = STAGES.map((s, i) =>
+        `<li data-index="${i}">${escapeHtml(s)}</li>`
+      ).join("");
+      let stageIndex = 0;
+      const items = stageList.querySelectorAll("li");
+      items[0].classList.add("active");
+      stageTimer = setInterval(() => {
+        items[stageIndex].classList.remove("active");
+        stageIndex = Math.min(stageIndex + 1, items.length - 1);
+        items[stageIndex].classList.add("active");
+      }, 1400);
+    } else {
+      statusLine.innerHTML = "";
+      stageList.hidden = true;
+      stageList.innerHTML = "";
+      if (stageTimer) clearInterval(stageTimer);
+    }
+  }
+
+  function normalizeUrlListText(text){
+    if (!text) return [];
+    return text.split(";").map(s => s.trim()).filter(Boolean);
+  }
+
+  function renderUrlCell(value){
+    if (!value) return "";
+    const urls = normalizeUrlListText(value);
+    if (urls.length === 0) return "";
+    return `<div class="url-list">${urls.map(u =>
+      `<a class="mono-link" href="${escapeHtml(u)}" target="_blank" rel="noopener noreferrer">${escapeHtml(u)}</a>`
+    ).join("")}</div>`;
+  }
+
+  function renderStatusCell(status){
+    if (!status) return "";
+    const info = STATUS_LABELS[status];
+    if (!info) return escapeHtml(status);
+    return `<span class="badge ${info.cls}">${escapeHtml(info.text)}</span>`;
+  }
+
+  function renderTable(){
+    if (results.length === 0){
+      resultsBody.innerHTML = "";
+      emptyState.style.display = "block";
+    } else {
+      emptyState.style.display = "none";
+      resultsBody.innerHTML = results.map(r => `
+        <tr>
+          <td class="col-si">${r.siNo}</td>
+          <td>${escapeHtml(r.companyName)}</td>
+          <td class="mono">${r.domain ? `<a href="${escapeHtml(r.domain)}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.domain)}</a>` : ""}</td>
+          <td>${renderUrlCell(r.leadershipUrl)}</td>
+          <td>${renderUrlCell(r.boardUrl)}</td>
+          <td>${renderUrlCell(r.otherTeamUrls)}</td>
+          <td>${renderStatusCell(r.status)}</td>
+        </tr>
+      `).join("");
+    }
+    resultsCount.textContent = `${results.length} ${results.length === 1 ? "company" : "companies"}`;
+    downloadBtn.disabled = results.length === 0;
+  }
+
+  async function submitSearch(){
+    if (isSubmitting) return;
+    clearFieldError();
+    clearToast();
+
+    const companyName = companyInput.value.trim();
+    if (!companyName){
+      showFieldError("Please enter a company name.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/research`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company_name: companyName }),
+      });
+
+      let payload;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!res.ok || !payload || !payload.result){
+        const message = (payload && payload.error) ||
+          "Unable to process this company at this time. Please try again.";
+        showToast(message);
+        return;
+      }
+
+      const r = payload.result;
+      results.push({
+        siNo: results.length + 1,
+        companyName: r.company_name || companyName,
+        domain: r.domain || "",
+        leadershipUrl: r.leadership_url || "",
+        boardUrl: r.board_url || "",
+        otherTeamUrls: r.other_team_urls || "",
+        status: r.status || "",
+      });
+      renderTable();
+      companyInput.value = "";
+      companyInput.focus();
+    } catch (err) {
+      showToast("Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function clearResults(){
+    results = [];
+    renderTable();
+    clearToast();
+    clearFieldError();
+  }
+
+  function downloadXlsx(){
+    if (results.length === 0) return;
+
+    const headerRow = [
+      "SI No", "Company Name", "Domain",
+      "leadership_url", "board_url", "other_team_urls", "Status"
+    ];
+    const rows = results.map(r => [
+      r.siNo,
+      r.companyName,
+      r.domain,
+      r.leadershipUrl,
+      r.boardUrl,
+      r.otherTeamUrls,
+      r.status,
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headerRow, ...rows]);
+
+    // Column widths
+    worksheet["!cols"] = [
+      { wch: 6 },   // SI No
+      { wch: 28 },  // Company Name
+      { wch: 28 },  // Domain
+      { wch: 42 },  // leadership_url
+      { wch: 42 },  // board_url
+      { wch: 50 },  // other_team_urls
+      { wch: 34 },  // Status
+    ];
+
+    // Hyperlink single-URL cells (Domain, leadership_url, board_url)
+    results.forEach((r, i) => {
+      const rowIdx = i + 2; // 1-based, +1 for header
+      if (r.domain){
+        const cellRef = `C${rowIdx}`;
+        worksheet[cellRef].l = { Target: r.domain };
+      }
+      if (r.leadershipUrl){
+        const cellRef = `D${rowIdx}`;
+        worksheet[cellRef].l = { Target: r.leadershipUrl };
+      }
+      if (r.boardUrl){
+        const cellRef = `E${rowIdx}`;
+        worksheet[cellRef].l = { Target: r.boardUrl };
+      }
+    });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
+    XLSX.writeFile(workbook, "Organisation_Discovery_Check_Results.xlsx");
+  }
+
+  searchBtn.addEventListener("click", submitSearch);
+  clearBtn.addEventListener("click", clearResults);
+  downloadBtn.addEventListener("click", downloadXlsx);
+  companyInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitSearch();
+  });
+  companyInput.addEventListener("input", clearFieldError);
+
+  renderTable();
+</script>
+</body>
+</html>

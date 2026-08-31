@@ -1,0 +1,13 @@
+{
+  "name": "organisation-discovery-check",
+  "version": "1.0.0",
+  "description": "Organisation Discovery Check — single-deploy app (static frontend + serverless /api/research route).",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "openai": "^4.60.0"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  }
+}
